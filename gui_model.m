@@ -3,11 +3,11 @@ function sensor_gui()
     f = figure('Visible','off','Position',[360,500,450,285]);
 
     % Membuat panel untuk menampilkan plot data
-    plot_panel = uipanel(f,'Title','Data Plot','Position',[0.05,0.2,0.7,0.75]);
+    plot_panel = uipanel(f,'Title','Data Plot','Position',[0.05,0.2,0.7,0.72]);
     axes_handle = axes('Parent', plot_panel);
 
     % Membuat tombol push untuk memulai prediksi
-    hButton = uicontrol('Parent', f, 'Style', 'pushbutton', 'String', 'Mulai Prediksi', 'Units', 'normalized', 'Position', [0.7 0.2 0.2 0.2], 'Callback', @onButtonClick);
+    hButton = uicontrol('Parent', f, 'Style', 'pushbutton', 'String', 'Mulai Prediksi', 'Units', 'normalized', 'Position', [0.7 0.0 0.2 0.2], 'Callback', @onButtonClick);
     
     
     % Membuat tombol untuk mengambil data
@@ -19,10 +19,12 @@ function sensor_gui()
         'Position',[315,170,100,25],'Callback',{@simpan_dataset_callback});
 
     % Membuat edit box untuk input label
-    label_edit = uicontrol(f,'Style','edit','Position',[315,120,100,25]);
+    label_edit = uicontrol(f,'Style','edit','Position',[315,120,100,15]);
+    label_edit2 = uicontrol(f,'Style','edit','Position',[315,100,100,15]);
+    label_edit3 = uicontrol(f,'Style','edit','Position',[315,80,100,15]);
 
     % Membuat teks untuk label
-    label_text = uicontrol(f,'Style','text','String','Label',...
+    label_text = uicontrol(f,'Style','text','String','Label 1,2,3',...
         'Position',[325,150,80,15]);
 data = zeros(1000, 3); % inisialisasi variabel data dengan ukuran 100 x 3
 label = zeros(1000, 1); % inisialisasi variabel label dengan ukuran 100 x 1
@@ -35,7 +37,7 @@ label = zeros(1000, 1); % inisialisasi variabel label dengan ukuran 100 x 1
         a = arduino('COM17', 'Uno');
 
         % Inisialisasi variabel
-        jumlah_sampel = 1000;
+        jumlah_sampel = 120;
         jumlah_sensor = 3;
         data = zeros(jumlah_sampel, jumlah_sensor);
         label = zeros(jumlah_sampel, 1);
@@ -52,7 +54,14 @@ label = zeros(1000, 1); % inisialisasi variabel label dengan ukuran 100 x 1
             data(i, 3) = readVoltage(a, 'A5');
 
             % Input label dari edit box
-            label(i) = str2double(label_edit.String);
+%             label(i) = str2double(label_edit.String);
+                if (i >= 0 && i<=39)
+                label(i) = str2double(label_edit2.String);
+                elseif (i>=40 && i<=80)
+                    label(i) = str2double(label_edit3.String);
+                else
+                    label(i) = str2double(label_edit.String);
+                end
 
             % Plot data
             plot(axes_handle, data(:,1), 'r');
@@ -99,10 +108,10 @@ label = zeros(1000, 1); % inisialisasi variabel label dengan ukuran 100 x 1
             load('dataset2.mat');
             data = dataset(:, 1:3);
             label = dataset(:, 4);
-            trainData = data(1:80,:);
-            trainLabel = label(1:80,:);
-            testData = data(81:end,:);
-            testLabel = label(81:end,:);
+            trainData = data(1:90,:);
+            trainLabel = label(1:90,:);
+            testData = data(91:end,:);
+            testLabel = label(91:end,:);
 
             % Mulai proses pelatihan
             [net,tr] = train(net,trainData',trainLabel');
@@ -116,15 +125,16 @@ label = zeros(1000, 1); % inisialisasi variabel label dengan ukuran 100 x 1
 
             % Lakukan prediksi dengan menggunakan model
             sensorData = [mq5Value; mq135Value; mq2Value];
+            disp(sensorData)
             prediction = net(sensorData);
 
             % Tampilkan hasil prediksi
-            if(prediction<0.5)
+            if(prediction<=3.2)
                 hasil="beras dalam keadaan baik";
             else
                 hasil="beras dalam keadaan buruk";
             end
-            hText = uicontrol('Parent', f, 'Style', 'text', 'String', hasil, 'Units', 'normalized', 'Position', [0.0 0.0 0.9 0.2]);
+            hText = uicontrol('Parent', f, 'Style', 'text', 'String', hasil, 'Units', 'normalized', 'Position', [0.0 0.0 0.5 0.2]);
        
      end
 end
