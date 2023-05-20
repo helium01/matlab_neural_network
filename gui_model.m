@@ -11,6 +11,8 @@ function sensor_gui()
     
     importDataButton = uicontrol('Style', 'pushbutton', 'String', 'Import Data', ...
     'Position', [50, 50, 100, 30], 'Callback', @simpan_data_excel_to_mat);
+tampilDataButton = uicontrol('Style', 'pushbutton', 'String', 'Tampilkan Data', ...
+    'Position', [100, 50, 100, 30], 'Callback', @tampil_data);
     % Membuat tombol untuk mengambil data
     data_button = uicontrol(f,'Style','pushbutton','String','Ambil Data',...
         'Position',[315,220,100,25],'Callback',{@ambil_data_callback});
@@ -83,6 +85,16 @@ label = zeros(1000, 1); % inisialisasi variabel label dengan ukuran 100 x 1
         clear a;
     end
 
+% menampilkan dataset
+    function tampil_data(source,event)
+        load('dataset2.mat');  % Mengambil dataset dari file dataset.mat
+x = dataset(:, 1);  % Kolom pertama dataset sebagai data sumbu x
+y = dataset(:, 2);  % Kolom kedua dataset sebagai data sumbu y
+scatter(x, y);
+title('Scatter Plot Dataset');
+xlabel('X');
+ylabel('Y');
+    end
     % Callback untuk tombol simpan dataset
     function simpan_dataset_callback(source, event)
         % Simpan dataset ke dalam file .mat
