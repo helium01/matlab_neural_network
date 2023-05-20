@@ -9,7 +9,8 @@ function sensor_gui()
     % Membuat tombol push untuk memulai prediksi
     hButton = uicontrol('Parent', f, 'Style', 'pushbutton', 'String', 'Mulai Prediksi', 'Units', 'normalized', 'Position', [0.7 0.0 0.2 0.2], 'Callback', @onButtonClick);
     
-    
+    importDataButton = uicontrol('Style', 'pushbutton', 'String', 'Import Data', ...
+    'Position', [50, 50, 100, 30], 'Callback', @simpan_data_excel_to_mat);
     % Membuat tombol untuk mengambil data
     data_button = uicontrol(f,'Style','pushbutton','String','Ambil Data',...
         'Position',[315,220,100,25],'Callback',{@ambil_data_callback});
@@ -90,51 +91,111 @@ label = zeros(1000, 1); % inisialisasi variabel label dengan ukuran 100 x 1
         msgbox('Dataset berhasil disimpan!');
     end
     
+    function menampilkan_figur_baru(source,event)
+        
+    end
+
+
+%     membuat inputan 
+    function simpan_data_excel_to_mat(source,event)
+        % Meminta pengguna untuk memilih file Excel
+    [filename, path] = uigetfile('*.xlsx', 'Pilih file Excel');
+
+    % Memeriksa jika pengguna membatalkan pemilihan file
+    if isequal(filename,0) || isequal(path,0)
+        disp('Pemilihan file dibatalkan.');
+        return;
+    end
+
+    % Membaca dataset dari file Excel
+    try
+        data = xlsread(fullfile(path, filename));
+    catch
+        disp('Terjadi kesalahan saat membaca file Excel.');
+        return;
+    end
+
+    % Menyimpan dataset dalam file .mat
+    try
+        save(fullfile(path, 'dataset.mat'), 'data');
+        disp('Dataset berhasil diimpor dan disimpan sebagai file .mat.');
+    catch
+        disp('Terjadi kesalahan saat menyimpan file .mat.');
+    end
+    end
+    
     function onButtonClick(~, ~)
         % Inisialisasi objek Arduino
       
             
-            a = arduino('COM17', 'Uno');
-            % Persiapkan model neural network
-            net = feedforwardnet([10 20 5]);
+           a = arduino('COM17', 'Uno');
+net = feedforwardnet([10 20 5]);
+net = init(net);
+net.trainParam.epochs = 100;
+net.trainParam.goal = 0.01;
 
-            % Inisialisasi bobot dan bias secara acak
-            net = init(net);
-            % Tentukan opsi pelatihan model
-            net.trainParam.epochs = 100;
-            net.trainParam.goal = 0.01;
+load('dataset2.mat');
+data = dataset(:, 1:3);
+label = dataset(:, 4);
+trainData = data(1:90,:);
+trainLabel = label(1:90,:);
+testData = data(91:end,:);
+testLabel = label(91:end,:);
 
-            % Pisahkan dataset menjadi data pelatihan dan data pengujian
-            load('dataset2.mat');
-            data = dataset(:, 1:3);
-            label = dataset(:, 4);
-            trainData = data(1:90,:);
-            trainLabel = label(1:90,:);
-            testData = data(91:end,:);
-            testLabel = label(91:end,:);
+mseValues = zeros(1, net.trainParam.epochs);
 
-            % Mulai proses pelatihan
-            [net,tr] = train(net,trainData',trainLabel');
-            % Tampilkan hasil balasan
-            disp(tr);
+for epoch = 1:net.trainParam.epochs
+    [net, tr] = train(net, trainData', trainLabel');
+    mseValues(epoch) = tr.best_perf;
+    
+    if tr.best_perf <= net.trainParam.goal
+        break; % Berhenti jika telah mencapai goal
+    end
+end
 
-            % Baca data dari sensor
-            mq5Value = readVoltage(a, 'A5');
-            mq135Value = readVoltage(a, 'A4');
-            mq2Value = readVoltage(a, 'A1');
+% Menampilkan grafik MSE vs. Epoch
+figure;
+plot(1:epoch, mseValues(1:epoch), 'b', 'LineWidth', 2);
+title('Grafik MSE vs. Epoch');
+xlabel('Epoch');
+ylabel('MSE');
 
-            % Lakukan prediksi dengan menggunakan model
-            sensorData = [mq5Value; mq135Value; mq2Value];
-            disp(sensorData)
-            prediction = net(sensorData);
 
-            % Tampilkan hasil prediksi
-            if(prediction<=3.2)
-                hasil="beras dalam keadaan baik";
-            else
-                hasil="beras dalam keadaan buruk";
-            end
-            hText = uicontrol('Parent', f, 'Style', 'text', 'String', hasil, 'Units', 'normalized', 'Position', [0.0 0.0 0.5 0.2]);
-       
+mq5Value = readVoltage(a, 'A5');
+mq135Value = readVoltage(a, 'A4');
+mq2Value = readVoltage(a, 'A1');
+
+sensorData = [mq5Value; mq135Value; mq2Value];
+prediction = net(sensorData);
+
+if prediction <= 3.2
+    hasil = "beras dalam keadaan baik";
+else
+    hasil = "beras dalam keadaan buruk";
+end
+            hText = uicontrol('Parent', f, 'Style', 'text', 'String', prediction, 'Units', 'normalized', 'Position', [0.0 0.0 0.5 0.2]);
+       % Analisis Data Pengujian
+ % Analisis Data Pengujian
+predictedLabels = net(testData'); % Melakukan prediksi pada data pengujian
+mseValue = mse(predictedLabels', testLabel); % Menghitung Mean Squared Error
+maeValue = mae(predictedLabels', testLabel); % Menghitung Mean Absolute Error
+% Menghitung akurasi
+acc = sum(predictedLabels' == testLabel) / length(testLabel);
+disp("Hasil Analisis Data Pengujian:")
+disp("Mean Squared Error: " + mseValue)
+disp("Mean Absolute Error: " + maeValue)
+disp("Akurasi: " + acc)
+
+
+% Analisis Lainnya
+% Misalnya, visualisasi perbandingan target dan hasil prediksi pada data pengujian
+figure
+plot(testLabel, 'b', 'LineWidth', 2);
+hold on;
+plot(predictedLabels', 'r--', 'LineWidth', 2);
+title('Hasil Prediksi vs. Target Sebenarnya (Data Pengujian)')
+xlabel('Data Uji')
+ylabel('Nilai')
+legend('Target', 'Prediksi')
      end
 end
